@@ -22,7 +22,14 @@
       <h2>Resultado:</h2>
       <p><strong>CEP:</strong> {{ cepData.cep }}</p>
       <p><strong>Logradouro:</strong> {{ cepData.logradouro || 'Não informado' }}</p>
-      <p><strong>Complemento:</strong> {{ cepData.complemento || 'Não informado' }}</p>
+      <div v-if="!cepData.complemento || cepData.complemento === 'Não informado'">
+        <label for="complemento">Complemento:</label>
+        <input id="complemento" v-model="novoComplemento" placeholder="Digite o complemento" />
+        <button @click="salvarComplemento" :disabled="salvandoComplemento">Salvar</button>
+        <span v-if="salvandoComplemento">Salvando...</span>
+        <span v-if="erroSalvarComplemento" class="error">{{ erroSalvarComplemento }}</span>
+      </div>
+      <p v-else><strong>Complemento:</strong> {{ cepData.complemento }}</p>
       <p><strong>Bairro:</strong> {{ cepData.bairro || 'Não informado' }}</p>
       <p><strong>Cidade:</strong> {{ cepData.localidade }}</p>
       <p><strong>Estado:</strong> {{ cepData.uf }}</p>
@@ -37,7 +44,10 @@ export default {
       cep: '',
       cepData: null,
       loading: false,
-      error: null
+      error: null,
+      novoComplemento: '',
+      salvandoComplemento: false,
+      erroSalvarComplemento: null
     }
   },
   methods: {
@@ -76,6 +86,33 @@ export default {
         this.error = err.message
       } finally {
         this.loading = false
+      }
+    },
+    async salvarComplemento() {
+      if (!this.novoComplemento) {
+        this.erroSalvarComplemento = 'Digite um complemento.'
+        return
+      }
+      this.salvandoComplemento = true
+      this.erroSalvarComplemento = null
+      try {
+        const cleanedCep = this.cep.replace(/\D/g, '')
+        const response = await fetch(`http://localhost:8000/cep/${cleanedCep}/complemento`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ complemento: this.novoComplemento })
+        })
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.detail || 'Erro ao salvar complemento')
+        }
+        // Atualiza o cepData com o novo complemento
+        this.cepData.complemento = this.novoComplemento
+        this.novoComplemento = ''
+      } catch (err) {
+        this.erroSalvarComplemento = err.message
+      } finally {
+        this.salvandoComplemento = false
       }
     }
   }
